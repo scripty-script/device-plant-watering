@@ -158,8 +158,20 @@ func StartMqtt() {
 	opts.SetPingTimeout(1 * time.Second)
 
 	c := mqtt.NewClient(opts)
-	if token := c.Connect(); token.Wait() && token.Error() != nil {
-		fmt.Println(token.Error())
+
+	retry := time.NewTicker(5 * time.Second)
+
+RetryLoop:
+	for {
+		_, ok := <-retry.C
+		if ok {
+			if token := c.Connect(); token.Wait() && token.Error() != nil {
+				fmt.Println(token.Error())
+			} else {
+				retry.Stop()
+				break RetryLoop
+			}
+		}
 	}
 
 	go func() {
