@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"os"
 	"os/signal"
+	"os/user"
 	"syscall"
 	"time"
 
@@ -23,8 +24,6 @@ import (
 |
 */
 var database *sql.DB
-
-const dataSourceName string = "~/.pws/pws.db"
 
 /*
 |--------------------------------------------------------------------------
@@ -53,8 +52,11 @@ var f mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
 }
 
 func main() {
+	osUser, _ := user.Current()
+	dir := osUser.HomeDir + "/.pws/pws.db"
+
 	var err error
-	database, err = sql.Open("sqlite", dataSourceName)
+	database, err = sql.Open("sqlite", dir)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -71,6 +73,7 @@ func main() {
 		Usage:   "Plant Watering System",
 		Version: "v0.0.1",
 		Commands: []*cli.Command{
+
 			{
 				Name:  "auth",
 				Usage: "Set the credentials for the mqtt broker",
