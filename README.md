@@ -48,7 +48,7 @@ sudo mv pws /usr/local/bin
 ### Step 3 - Permission
 
 ```
-chmod 777 /usr/local/bin/pws
+sudo chmod +x /usr/local/bin/pws
 ```
 
 ```
