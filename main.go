@@ -2,14 +2,12 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"os/user"
 	"runtime"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -33,8 +31,10 @@ var database *sql.DB
 | Structs
 |--------------------------------------------------------------------------
 */
-type payload struct {
-	Value int `json:"value:"`
+type Payload struct {
+	Humidity     int     `json:"humidity"`
+	Temperature  float32 `json:"temperature"`
+	SoilMoisture int     `json:"soil_moisture"`
 }
 
 type Mqtt struct {
@@ -192,18 +192,7 @@ RetryLoop:
 		for {
 			value := ReadFromSerialPort(port)
 
-			// string to int
-			i, err := strconv.Atoi(value)
-			if err != nil {
-				continue
-			}
-
-			data := &payload{
-				Value: i,
-			}
-
-			dataByte, _ := json.Marshal(data)
-			token := c.Publish("devices/"+mqttConfig.ClientID+"/sensors", 0, false, dataByte)
+			token := c.Publish("devices/"+mqttConfig.ClientID+"/sensors", 0, false, value)
 			token.Wait()
 			time.Sleep(time.Second)
 		}
@@ -257,7 +246,7 @@ func GetSerialPort() (serial.Port, error) {
 	return serial.Open(ports[0], mode)
 }
 
-func ReadFromSerialPort(port serial.Port) string {
+func ReadFromSerialPort(port serial.Port) []byte {
 
 	// Read and print the response
 	buff := make([]byte, 100)
@@ -284,5 +273,5 @@ func ReadFromSerialPort(port serial.Port) string {
 		}
 	}
 
-	return strings.TrimSpace(value)
+	return []byte(strings.TrimSpace(value))
 }
