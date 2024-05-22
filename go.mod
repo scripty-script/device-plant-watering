@@ -6,10 +6,12 @@ require (
 	github.com/eclipse/paho.mqtt.golang v1.4.3
 	github.com/glebarez/go-sqlite v1.22.0
 	github.com/urfave/cli/v2 v2.27.1
+	go.bug.st/serial v1.6.2
 )
 
 require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
+	github.com/creack/goselect v0.1.2 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/google/uuid v1.5.0 // indirect
 	github.com/gorilla/websocket v1.5.0 // indirect

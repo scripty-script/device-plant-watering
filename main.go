@@ -5,16 +5,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"math/rand"
 	"os"
 	"os/signal"
 	"os/user"
+	"runtime"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	_ "github.com/glebarez/go-sqlite"
 	"github.com/urfave/cli/v2"
+	"go.bug.st/serial"
 )
 
 /*
@@ -52,8 +55,14 @@ var f mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
 }
 
 func main() {
-	osUser, _ := user.Current()
-	dir := osUser.HomeDir + "/.pws/pws.db"
+	var dir string
+	currentOs := runtime.GOOS
+	if currentOs == "windows" {
+		dir = "./.pws/pws.db"
+	} else {
+		osUser, _ := user.Current()
+		dir = osUser.HomeDir + "/.pws/pws.db"
+	}
 
 	var err error
 	database, err = sql.Open("sqlite", dir)
@@ -175,13 +184,26 @@ RetryLoop:
 	}
 
 	go func() {
+		port, err := GetSerialPort()
+		if err != nil {
+			fmt.Println(err)
+		}
+
 		for {
+			value := ReadFromSerialPort(port)
+
+			// string to int
+			i, err := strconv.Atoi(value)
+			if err != nil {
+				continue
+			}
+
 			data := &payload{
-				Value: rand.Intn(100),
+				Value: i,
 			}
 
 			dataByte, _ := json.Marshal(data)
-			token := c.Publish("device/"+mqttConfig.ClientID+"/sensor", 0, false, dataByte)
+			token := c.Publish("devices/"+mqttConfig.ClientID+"/sensors", 0, false, dataByte)
 			token.Wait()
 			time.Sleep(time.Second)
 		}
@@ -201,4 +223,66 @@ func Migration() {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func GetSerialPort() (serial.Port, error) {
+	// Retrieve the port list
+	ports, err := serial.GetPortsList()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if len(ports) == 0 {
+		log.Fatal("No serial ports found!")
+	}
+
+	// Print the list of detected ports
+	for _, port := range ports {
+		fmt.Printf("Found port: %v\n", port)
+	}
+
+	// Open the first serial port detected at 9600bps N81
+	mode := &serial.Mode{
+		BaudRate: 9600,
+		Parity:   serial.NoParity,
+		DataBits: 8,
+		StopBits: serial.OneStopBit,
+	}
+
+	for _, port := range ports {
+		if strings.Contains(port, "ttyUSB") {
+			return serial.Open(port, mode)
+		}
+	}
+
+	return serial.Open(ports[0], mode)
+}
+
+func ReadFromSerialPort(port serial.Port) string {
+
+	// Read and print the response
+	buff := make([]byte, 100)
+
+	var value string
+
+	// Reads up to 100 bytes
+	for {
+		// Reads up to 100 bytes
+		n, err := port.Read(buff)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if n == 0 {
+			fmt.Println("\nEOF")
+			break
+		}
+
+		value += string(buff[:n])
+
+		// If we receive a newline stop reading
+		if strings.Contains(string(buff[:n]), "\n") {
+			break
+		}
+	}
+
+	return strings.TrimSpace(value)
 }
